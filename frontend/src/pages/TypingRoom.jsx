@@ -268,7 +268,7 @@ const TypingRoom = () => {
     setIsCompleted(false);
     setHasTimedOut(false);
     hasTimedOutRef.current = false;
-    const resolvedLimit = nextTimeLimit ?? roomInfo?.timeLimitSeconds || DEFAULT_TIME_LIMIT_SECONDS;
+    const resolvedLimit = (nextTimeLimit ?? roomInfo?.timeLimitSeconds) ?? DEFAULT_TIME_LIMIT_SECONDS;
     setTimeRemaining(resolvedLimit);
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
