@@ -158,7 +158,7 @@ async function removeSocketFromRoom(socketId) {
   const updatedRoom = await Room.findOneAndUpdate(
     { roomId },
     { $pull: { users: socketId } },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!updatedRoom) {
@@ -199,7 +199,7 @@ async function handleJoinRoom(socket, rawRoomId) {
     const updatedRoom = await Room.findOneAndUpdate(
       { roomId },
       { $addToSet: { users: socket.id }, $set: { isActive: true } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updatedRoom) {
