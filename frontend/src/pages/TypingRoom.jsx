@@ -723,6 +723,45 @@ const TypingRoom = () => {
     return Math.min(100, Math.round((typedText.length / promptLength) * 100));
   }, [promptLength, typedText.length]);
 
+  const promptSegments = useMemo(() => {
+    const text = roomInfo?.text || '';
+    if (!text) {
+      return [];
+    }
+    const tokens = text.match(/\s+|\S+/g) || [];
+    let cursor = 0;
+    return tokens.map((token, index) => {
+      const tokenLength = token.length;
+      const typedSlice = typedText.slice(cursor, cursor + tokenLength);
+      const isWhitespace = /^\s+$/.test(token);
+      let status = 'space';
+      if (!isWhitespace) {
+        if (!typedSlice.length) {
+          status = 'upcoming';
+        } else if (typedSlice.length >= tokenLength) {
+          status = typedSlice === token ? 'completed' : 'error';
+        } else {
+          const reference = token.slice(0, typedSlice.length);
+          status = typedSlice === reference ? 'current' : 'error';
+        }
+      }
+      cursor += tokenLength;
+      return {
+        key: `segment-${index}`,
+        text: token,
+        status,
+      };
+    });
+  }, [roomInfo?.text, typedText]);
+
+  const promptClassMap = {
+    completed: 'text-slate-500',
+    current: 'text-sky-300',
+    upcoming: 'text-slate-200',
+    error: 'text-rose-300 underline decoration-rose-400',
+    space: '',
+  };
+
   const formattedLeaderboard = useMemo(
     () =>
       leaderboard.map((entry, index) => ({
@@ -910,7 +949,15 @@ const TypingRoom = () => {
             <span>Prompt</span>
             {roomInfo?.text && <span>{progressPercent}% complete</span>}
           </div>
-          <p className="mt-3 text-lg leading-relaxed text-slate-100">{roomInfo?.text}</p>
+          <p className="mt-3 text-lg leading-relaxed text-slate-100">
+            {promptSegments.length
+              ? promptSegments.map((segment) => (
+                  <span key={segment.key} className={promptClassMap[segment.status]}>
+                    {segment.text}
+                  </span>
+                ))
+              : roomInfo?.text}
+          </p>
 
           <div
             className="mt-6 rounded-2xl border border-white/10 bg-slate-900/60 p-4"
