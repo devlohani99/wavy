@@ -917,7 +917,7 @@ const TypingRoom = () => {
             onContextMenu={handleBlockedInteraction}
           >
             <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
-              <span>Typing as {confirmedName || '—'}</span>
+              <span>Typing as {confirmedName || 'Guest'}</span>
               <span>{currentWpm} WPM</span>
             </div>
             <textarea
@@ -973,9 +973,6 @@ const TypingRoom = () => {
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-xs">
                     <span>{entry.statusLabel}</span>
-                    {entry.isFlagged && (
-                      <span className="rounded-full border border-amber-400/40 bg-amber-500/10 px-2 py-[2px] text-amber-200">⚠️ Flagged</span>
-                    )}
                   </div>
                 </div>
               ))}
