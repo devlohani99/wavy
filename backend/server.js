@@ -8,7 +8,7 @@ const { Server } = require('socket.io');
 const Room = require('./models/Room');
 const roomRoutes = require('./routes/roomRoutes');
 const typingRoutes = require('./routes/typingRoutes');
-const { getTypingRoom, deleteTypingRoom, TYPING_TIME_LIMIT_SECONDS } = require('./store/typingRooms');
+const { getTypingRoom, deleteTypingRoom, TYPING_TIME_LIMIT_SECONDS, TOTAL_ROUNDS } = require('./store/typingRooms');
 
 mongoose.set('strictQuery', true);
 
@@ -57,6 +57,7 @@ const io = new Server(server, {
 const socketRoomMap = new Map();
 const typingSocketRoomMap = new Map();
 
+const ROUND_TRANSITION_DELAY_MS = 4000;
 const MIN_USERNAME_LENGTH = 3;
 const MAX_USERNAME_LENGTH = 15;
 const USERNAME_PATTERN = /^[a-zA-Z0-9 _-]+$/;
@@ -76,24 +77,33 @@ function sanitizeUsername(rawUsername) {
 }
 
 function computeScore(referenceText, inputValue) {
-  const target = referenceText || '';
+  const target = typeof referenceText === 'string' ? referenceText : '';
   const typed = typeof inputValue === 'string' ? inputValue : '';
+  const targetWords = target.split(/\s+/).filter(Boolean);
+  const typedWords = typed.split(/\s+/);
   let score = 0;
   let correctChars = 0;
-  for (let i = 0; i < typed.length; i += 1) {
-    const expected = target[i];
-    const actual = typed[i];
-    if (typeof expected === 'undefined') {
-      score -= 1;
+
+  for (let i = 0; i < targetWords.length; i += 1) {
+    const expectedWord = targetWords[i];
+    const typedWord = typedWords[i] || '';
+    if (!typedWord) {
       continue;
     }
-    if (actual === expected) {
-      score += 1;
-      correctChars += 1;
-    } else {
-      score -= 1;
+    const minLength = Math.min(expectedWord.length, typedWord.length);
+    for (let j = 0; j < minLength; j += 1) {
+      if (typedWord[j] === expectedWord[j]) {
+        score += 1;
+        correctChars += 1;
+      } else {
+        score -= 1;
+      }
+    }
+    if (typedWord.length > expectedWord.length) {
+      score -= typedWord.length - expectedWord.length;
     }
   }
+
   return { score, correctChars, typedLength: typed.length };
 }
 
@@ -110,10 +120,21 @@ function flagUser(user, reason) {
   user.isFlagged = true;
 }
 
-function emitTypingRoomState(roomId) {
-  const room = getTypingRoom(roomId);
+function getRoundMeta(room) {
   if (!room) {
-    return;
+    return { roundNumber: 1, totalRounds: TOTAL_ROUNDS };
+  }
+  const totalRounds = room.rounds?.length || TOTAL_ROUNDS;
+  const safeIndex = Math.min(room.currentRoundIndex || 0, Math.max(totalRounds - 1, 0));
+  return {
+    roundNumber: safeIndex + 1,
+    totalRounds,
+  };
+}
+
+function buildLeaderboard(room) {
+  if (!room) {
+    return [];
   }
   const leaderboard = Array.from(room.users.values())
     .map((user) => ({
@@ -143,9 +164,101 @@ function emitTypingRoomState(roomId) {
       }
       return a.username.localeCompare(b.username);
     });
+  return leaderboard;
+}
+
+function emitTypingRoomState(roomId) {
+  const room = getTypingRoom(roomId);
+  if (!room) {
+    return;
+  }
+  const leaderboard = buildLeaderboard(room);
+  const { roundNumber, totalRounds } = getRoundMeta(room);
 
   io.to(`typing:${roomId}`).emit('typing-users-update', { roomId, count: room.users.size });
-  io.to(`typing:${roomId}`).emit('leaderboard-update', { roomId, leaderboard });
+  io.to(`typing:${roomId}`).emit('leaderboard-update', { roomId, leaderboard, roundNumber, totalRounds });
+}
+
+function announceGameState(roomId, type) {
+  const room = getTypingRoom(roomId);
+  if (!room) {
+    return;
+  }
+  const leaderboard = buildLeaderboard(room);
+  const { roundNumber, totalRounds } = getRoundMeta(room);
+  const payload = { roomId, leaderboard, roundNumber, totalRounds };
+  if (type === 'complete') {
+    payload.winner = leaderboard[0] || null;
+    io.to(`typing:${roomId}`).emit('game-complete', payload);
+  } else {
+    io.to(`typing:${roomId}`).emit('round-complete', payload);
+  }
+}
+
+function resetUsersForNextRound(room) {
+  room.isTransitioning = false;
+  room.users.forEach((user) => {
+    user.isCompleted = false;
+    user.isTimeUp = false;
+    user.startedAt = null;
+    user.expiresAt = null;
+    user.lastInputLength = 0;
+    user.lastInputValue = '';
+    user.lastUpdateAt = null;
+    user.completionTime = null;
+  });
+}
+
+function startNextRound(roomId) {
+  const room = getTypingRoom(roomId);
+  if (!room || room.isGameOver) {
+    return;
+  }
+  if (room.isTransitioning) {
+    return;
+  }
+  room.currentRoundIndex += 1;
+  if (room.currentRoundIndex >= room.rounds.length) {
+    room.isGameOver = true;
+    announceGameState(roomId, 'complete');
+    return;
+  }
+  room.text = room.rounds[room.currentRoundIndex];
+  resetUsersForNextRound(room);
+  const { roundNumber, totalRounds } = getRoundMeta(room);
+  io.to(`typing:${roomId}`).emit('round-start', {
+    roomId,
+    text: room.text,
+    roundNumber,
+    totalRounds,
+    timeLimitSeconds: TYPING_TIME_LIMIT_SECONDS,
+  });
+  emitTypingRoomState(roomId);
+}
+
+function checkRoundCompletion(roomId) {
+  const room = getTypingRoom(roomId);
+  if (!room || room.isGameOver) {
+    return;
+  }
+  if (!room.users.size) {
+    return;
+  }
+  const everyoneDone = Array.from(room.users.values()).every((user) => user.isCompleted || user.isTimeUp);
+  if (!everyoneDone) {
+    return;
+  }
+  const { roundNumber, totalRounds } = getRoundMeta(room);
+  if (roundNumber >= totalRounds) {
+    room.isGameOver = true;
+    announceGameState(roomId, 'complete');
+    return;
+  }
+  room.isTransitioning = true;
+  announceGameState(roomId, 'round');
+  setTimeout(() => {
+    startNextRound(roomId);
+  }, ROUND_TRANSITION_DELAY_MS);
 }
 
 async function removeSocketFromRoom(socketId) {
@@ -257,10 +370,13 @@ function handleJoinTypingRoom(socket, payload = {}) {
 
   const existingUser = room.users.get(socket.id);
   const now = Date.now();
+  const roundScores = Array.isArray(existingUser?.roundScores) ? [...existingUser.roundScores] : [];
+  const totalScore = roundScores.reduce((sum, value) => sum + (value || 0), 0);
   room.users.set(socket.id, {
     socketId: socket.id,
     username,
-    score: existingUser?.score || 0,
+    score: totalScore,
+    roundScores,
     typedLength: existingUser?.typedLength || 0,
     correctChars: existingUser?.correctChars || 0,
     lastInputLength: existingUser?.lastInputLength || 0,
@@ -277,7 +393,14 @@ function handleJoinTypingRoom(socket, payload = {}) {
 
   typingSocketRoomMap.set(socket.id, roomId);
   socket.join(`typing:${roomId}`);
-  socket.emit('typing-room-ready', { roomId, text: room.text, timeLimitSeconds: TYPING_TIME_LIMIT_SECONDS });
+  const { roundNumber, totalRounds } = getRoundMeta(room);
+  socket.emit('typing-room-ready', {
+    roomId,
+    text: room.text,
+    timeLimitSeconds: TYPING_TIME_LIMIT_SECONDS,
+    roundNumber,
+    totalRounds,
+  });
   emitTypingRoomState(roomId);
 }
 
@@ -327,8 +450,11 @@ function handleTypingUpdate(socket, payload = {}) {
     flagUser(user, 'paste-detected');
   }
 
-  const { score, correctChars, typedLength } = computeScore(room.text, safeValue);
-  user.score = score;
+  const { score: roundScore, correctChars, typedLength } = computeScore(room.text, safeValue);
+  const roundIndex = room.currentRoundIndex || 0;
+  user.roundScores = user.roundScores || [];
+  user.roundScores[roundIndex] = roundScore;
+  user.score = user.roundScores.reduce((sum, value) => sum + (value || 0), 0);
   user.correctChars = correctChars;
   user.typedLength = typedLength;
   user.lastInputLength = typedLength;
@@ -352,6 +478,7 @@ function handleTypingUpdate(socket, payload = {}) {
   }
 
   emitTypingRoomState(roomId);
+  checkRoundCompletion(roomId);
 }
 
 function resolveTypingContext(socket, roomIdOverride) {
@@ -447,6 +574,7 @@ function handleLeaveTypingRoom(socket) {
     return;
   }
   emitTypingRoomState(roomId);
+  checkRoundCompletion(roomId);
 }
 
 io.on('connection', (socket) => {

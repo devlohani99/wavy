@@ -59,6 +59,8 @@ const TypingRoom = () => {
   const [hasTimedOut, setHasTimedOut] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(DEFAULT_TIME_LIMIT_SECONDS);
   const [toastMessage, setToastMessage] = useState('');
+  const [roundSummary, setRoundSummary] = useState(null);
+  const [gameSummary, setGameSummary] = useState(null);
   const [voicePeers, setVoicePeers] = useState({});
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState('idle');
@@ -258,7 +260,7 @@ const TypingRoom = () => {
     }
   }, [cleanupVoiceResources]);
 
-  useEffect(() => {
+  const resetRoundState = useCallback((nextTimeLimit) => {
     setTypedText('');
     typedTextRef.current = '';
     setElapsedSeconds(0);
@@ -266,13 +268,18 @@ const TypingRoom = () => {
     setIsCompleted(false);
     setHasTimedOut(false);
     hasTimedOutRef.current = false;
-    setTimeRemaining(DEFAULT_TIME_LIMIT_SECONDS);
+    const resolvedLimit = nextTimeLimit ?? roomInfo?.timeLimitSeconds || DEFAULT_TIME_LIMIT_SECONDS;
+    setTimeRemaining(resolvedLimit);
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
     typingStartedAtRef.current = null;
-  }, [roomId]);
+  }, [roomInfo?.timeLimitSeconds]);
+
+  useEffect(() => {
+    resetRoundState();
+  }, [resetRoundState, roomId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -284,6 +291,8 @@ const TypingRoom = () => {
           return;
         }
         setRoomInfo(data);
+        setRoundSummary(null);
+        setGameSummary(null);
         setTimeRemaining(data?.timeLimitSeconds || DEFAULT_TIME_LIMIT_SECONDS);
         setHasTimedOut(false);
         hasTimedOutRef.current = false;
@@ -413,14 +422,47 @@ const TypingRoom = () => {
       setUserCount(count || 0);
     });
 
-    socket.on('leaderboard-update', ({ leaderboard: payload }) => {
+    socket.on('leaderboard-update', ({ leaderboard: payload, roundNumber, totalRounds }) => {
       setLeaderboard(payload || []);
+      if (roundNumber && totalRounds) {
+        setRoomInfo((prev) => (prev ? { ...prev, roundNumber, totalRounds } : prev));
+      }
     });
 
     socket.on('user-finished', ({ username }) => {
       if (username) {
         showToast(`${username} finished!`);
       }
+    });
+
+    socket.on('typing-room-ready', (payload) => {
+      if (!payload) {
+        return;
+      }
+      setRoomInfo((prev) => ({ ...prev, ...payload }));
+      setTimeRemaining(payload.timeLimitSeconds || DEFAULT_TIME_LIMIT_SECONDS);
+      resetRoundState(payload.timeLimitSeconds);
+    });
+
+    socket.on('round-start', (payload) => {
+      if (!payload) {
+        return;
+      }
+      setRoomInfo((prev) => ({ ...prev, ...payload }));
+      setRoundSummary(null);
+      setGameSummary(null);
+      resetRoundState(payload.timeLimitSeconds);
+      showToast(`Round ${payload.roundNumber} started`);
+    });
+
+    socket.on('round-complete', (payload) => {
+      setRoundSummary(payload || null);
+    });
+
+    socket.on('game-complete', (payload) => {
+      setGameSummary(payload || null);
+      setRoundSummary(null);
+      showToast('Game complete!');
     });
 
     socket.on('typing-timeup', () => {
@@ -545,7 +587,7 @@ const TypingRoom = () => {
       socketRef.current = null;
       cleanupVoiceResources();
     };
-  }, [cleanupVoiceResources, flushPendingIce, handleTimeExpired, initiatePeerConnection, removeVoicePeer, roomId, showToast, status]);
+  }, [cleanupVoiceResources, flushPendingIce, handleTimeExpired, initiatePeerConnection, removeVoicePeer, resetRoundState, roomId, showToast, status]);
 
   useEffect(() => {
     if (status === 'ready' && isNameConfirmed && socketRef.current?.connected) {
@@ -592,6 +634,10 @@ const TypingRoom = () => {
   );
 
   const handleInputChange = (event) => {
+    if (gameSummary) {
+      showToast('Game has finished');
+      return;
+    }
     if (!isNameConfirmed || status !== 'ready' || !roomInfo?.text) {
       showToast('Choose a name before typing');
       return;
@@ -641,6 +687,8 @@ const TypingRoom = () => {
     socketRef.current?.emit('leave-typing-room');
     socketRef.current?.emit('leave-voice');
     cleanupVoiceResources();
+    setRoundSummary(null);
+    setGameSummary(null);
     navigate('/');
   };
 
@@ -946,7 +994,9 @@ const TypingRoom = () => {
       <main className="flex flex-1 flex-col gap-6 p-5 lg:flex-row">
         <section className="flex-1 rounded-3xl border border-white/10 bg-white/5/10 p-5 backdrop-blur-xl">
           <div className="flex items-center justify-between text-xs uppercase tracking-[0.4em] text-slate-400">
-            <span>Prompt</span>
+            <span>
+              Prompt · Round {roomInfo?.roundNumber || 1}/{roomInfo?.totalRounds || 1}
+            </span>
             {roomInfo?.text && <span>{progressPercent}% complete</span>}
           </div>
           <p className="mt-3 text-lg leading-relaxed text-slate-100">
@@ -975,7 +1025,7 @@ const TypingRoom = () => {
               onCopy={handleBlockedInteraction}
               onCut={handleBlockedInteraction}
               onKeyDown={handleKeyDownGuard}
-              disabled={!isNameConfirmed || isCompleted || status !== 'ready' || hasTimedOut}
+              disabled={!isNameConfirmed || isCompleted || status !== 'ready' || hasTimedOut || Boolean(gameSummary)}
               className="mt-3 h-40 w-full resize-none rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-base text-white placeholder:text-slate-600 focus:border-sky-400 disabled:cursor-not-allowed"
             />
             {elapsedSeconds > 0 && (
@@ -1088,6 +1138,54 @@ const TypingRoom = () => {
           </div>
         </aside>
       </main>
+
+      {roundSummary && !gameSummary && (
+        <div className="pointer-events-none fixed bottom-4 left-1/2 z-20 w-full max-w-md -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-900/90 p-4 text-center text-sm text-white shadow-xl">
+          <p className="font-semibold">Round {roundSummary.roundNumber} complete</p>
+          {roundSummary.leaderboard?.[0] && (
+            <p className="text-xs text-slate-300">
+              Leading: {roundSummary.leaderboard[0].username} ({roundSummary.leaderboard[0].score} pts)
+            </p>
+          )}
+          <p className="mt-1 text-xs text-slate-400">Next round starting shortly…</p>
+        </div>
+      )}
+
+      {gameSummary && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-950/90 p-6 text-center text-white shadow-2xl">
+            <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Game complete</p>
+            <h2 className="mt-2 text-3xl font-semibold">Winner: {gameSummary.winner?.username || '—'}</h2>
+            <p className="mt-1 text-slate-300">Total Score: {gameSummary.winner?.score ?? 0} pts</p>
+            <div className="mt-4 space-y-2 text-left text-sm text-slate-200 max-h-60 overflow-y-auto pr-2">
+              {(gameSummary.leaderboard || []).map((entry, index) => (
+                <div key={entry.socketId || `${entry.username}-${index}`} className="flex justify-between">
+                  <span>
+                    {index + 1}. {entry.username}
+                  </span>
+                  <span>{entry.score} pts</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <button
+                type="button"
+                onClick={() => setGameSummary(null)}
+                className="rounded-full border border-white/20 px-5 py-2 text-sm hover:bg-white/10"
+              >
+                Stay
+              </button>
+              <button
+                type="button"
+                onClick={handleLeaveRoom}
+                className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-slate-900"
+              >
+                Exit room
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
