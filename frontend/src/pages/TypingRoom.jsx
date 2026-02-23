@@ -422,7 +422,12 @@ const TypingRoom = () => {
     });
 
     socket.on('typing-room-error', ({ message }) => {
-      setError(message || 'Unable to join typing room.');
+      const friendlyMessage = message || 'Unable to join typing room.';
+      if (status === 'ready') {
+        showToast(friendlyMessage);
+        return;
+      }
+      setError(friendlyMessage);
       setStatus('error');
     });
 
