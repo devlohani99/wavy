@@ -1,22 +1,13 @@
 const TYPING_TIME_LIMIT_SECONDS = 60;
-const TOTAL_ROUNDS = 5;
 const typingRooms = new Map();
 
-function createTypingRoom({ roomId, rounds }) {
-  const preparedRounds = Array.isArray(rounds) && rounds.length ? rounds.slice(0, TOTAL_ROUNDS) : [];
-  if (!preparedRounds.length) {
-    preparedRounds.push('Typing sprint default prompt.');
-  }
+function createTypingRoom({ roomId, text }) {
   const room = {
     roomId,
+    text,
     createdAt: new Date(),
-    rounds: preparedRounds,
-    currentRoundIndex: 0,
-    text: preparedRounds[0],
     users: new Map(),
     voiceParticipants: new Map(),
-    isGameOver: false,
-    isTransitioning: false,
   };
   typingRooms.set(roomId, room);
   return room;
@@ -36,5 +27,4 @@ module.exports = {
   getTypingRoom,
   deleteTypingRoom,
   TYPING_TIME_LIMIT_SECONDS,
-  TOTAL_ROUNDS,
 };

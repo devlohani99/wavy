@@ -8,7 +8,7 @@ const { Server } = require('socket.io');
 const Room = require('./models/Room');
 const roomRoutes = require('./routes/roomRoutes');
 const typingRoutes = require('./routes/typingRoutes');
-const { getTypingRoom, deleteTypingRoom, TYPING_TIME_LIMIT_SECONDS, TOTAL_ROUNDS } = require('./store/typingRooms');
+const { getTypingRoom, deleteTypingRoom, TYPING_TIME_LIMIT_SECONDS } = require('./store/typingRooms');
 
 mongoose.set('strictQuery', true);
 
@@ -57,7 +57,6 @@ const io = new Server(server, {
 const socketRoomMap = new Map();
 const typingSocketRoomMap = new Map();
 
-const ROUND_TRANSITION_DELAY_MS = 4000;
 const MIN_USERNAME_LENGTH = 3;
 const MAX_USERNAME_LENGTH = 15;
 const USERNAME_PATTERN = /^[a-zA-Z0-9 _-]+$/;
@@ -120,18 +119,6 @@ function flagUser(user, reason) {
   user.isFlagged = true;
 }
 
-function getRoundMeta(room) {
-  if (!room) {
-    return { roundNumber: 1, totalRounds: TOTAL_ROUNDS };
-  }
-  const totalRounds = room.rounds?.length || TOTAL_ROUNDS;
-  const safeIndex = Math.min(room.currentRoundIndex || 0, Math.max(totalRounds - 1, 0));
-  return {
-    roundNumber: safeIndex + 1,
-    totalRounds,
-  };
-}
-
 function buildLeaderboard(room) {
   if (!room) {
     return [];
@@ -173,92 +160,8 @@ function emitTypingRoomState(roomId) {
     return;
   }
   const leaderboard = buildLeaderboard(room);
-  const { roundNumber, totalRounds } = getRoundMeta(room);
-
   io.to(`typing:${roomId}`).emit('typing-users-update', { roomId, count: room.users.size });
-  io.to(`typing:${roomId}`).emit('leaderboard-update', { roomId, leaderboard, roundNumber, totalRounds });
-}
-
-function announceGameState(roomId, type) {
-  const room = getTypingRoom(roomId);
-  if (!room) {
-    return;
-  }
-  const leaderboard = buildLeaderboard(room);
-  const { roundNumber, totalRounds } = getRoundMeta(room);
-  const payload = { roomId, leaderboard, roundNumber, totalRounds };
-  if (type === 'complete') {
-    payload.winner = leaderboard[0] || null;
-    io.to(`typing:${roomId}`).emit('game-complete', payload);
-  } else {
-    io.to(`typing:${roomId}`).emit('round-complete', payload);
-  }
-}
-
-function resetUsersForNextRound(room) {
-  room.isTransitioning = false;
-  room.users.forEach((user) => {
-    user.isCompleted = false;
-    user.isTimeUp = false;
-    user.startedAt = null;
-    user.expiresAt = null;
-    user.lastInputLength = 0;
-    user.lastInputValue = '';
-    user.lastUpdateAt = null;
-    user.completionTime = null;
-  });
-}
-
-function startNextRound(roomId) {
-  const room = getTypingRoom(roomId);
-  if (!room || room.isGameOver) {
-    return;
-  }
-  if (room.isTransitioning) {
-    return;
-  }
-  room.currentRoundIndex += 1;
-  if (room.currentRoundIndex >= room.rounds.length) {
-    room.isGameOver = true;
-    announceGameState(roomId, 'complete');
-    return;
-  }
-  room.text = room.rounds[room.currentRoundIndex];
-  resetUsersForNextRound(room);
-  const { roundNumber, totalRounds } = getRoundMeta(room);
-  io.to(`typing:${roomId}`).emit('round-start', {
-    roomId,
-    text: room.text,
-    roundNumber,
-    totalRounds,
-    timeLimitSeconds: TYPING_TIME_LIMIT_SECONDS,
-  });
-  emitTypingRoomState(roomId);
-}
-
-function checkRoundCompletion(roomId) {
-  const room = getTypingRoom(roomId);
-  if (!room || room.isGameOver) {
-    return;
-  }
-  if (!room.users.size) {
-    return;
-  }
-  const everyoneDone = Array.from(room.users.values()).every((user) => user.isCompleted || user.isTimeUp);
-  if (!everyoneDone) {
-    return;
-  }
-  const { roundNumber, totalRounds } = getRoundMeta(room);
-  if (roundNumber >= totalRounds) {
-    room.isGameOver = true;
-    announceGameState(roomId, 'complete');
-    return;
-  }
-  room.isTransitioning = true;
-  announceGameState(roomId, 'round');
-  setTimeout(() => {
-    startNextRound(roomId);
-  }, ROUND_TRANSITION_DELAY_MS);
+  io.to(`typing:${roomId}`).emit('leaderboard-update', { roomId, leaderboard });
 }
 
 async function removeSocketFromRoom(socketId) {
@@ -370,13 +273,10 @@ function handleJoinTypingRoom(socket, payload = {}) {
 
   const existingUser = room.users.get(socket.id);
   const now = Date.now();
-  const roundScores = Array.isArray(existingUser?.roundScores) ? [...existingUser.roundScores] : [];
-  const totalScore = roundScores.reduce((sum, value) => sum + (value || 0), 0);
   room.users.set(socket.id, {
     socketId: socket.id,
     username,
-    score: totalScore,
-    roundScores,
+    score: existingUser?.score || 0,
     typedLength: existingUser?.typedLength || 0,
     correctChars: existingUser?.correctChars || 0,
     lastInputLength: existingUser?.lastInputLength || 0,
@@ -393,14 +293,6 @@ function handleJoinTypingRoom(socket, payload = {}) {
 
   typingSocketRoomMap.set(socket.id, roomId);
   socket.join(`typing:${roomId}`);
-  const { roundNumber, totalRounds } = getRoundMeta(room);
-  socket.emit('typing-room-ready', {
-    roomId,
-    text: room.text,
-    timeLimitSeconds: TYPING_TIME_LIMIT_SECONDS,
-    roundNumber,
-    totalRounds,
-  });
   emitTypingRoomState(roomId);
 }
 
@@ -450,11 +342,8 @@ function handleTypingUpdate(socket, payload = {}) {
     flagUser(user, 'paste-detected');
   }
 
-  const { score: roundScore, correctChars, typedLength } = computeScore(room.text, safeValue);
-  const roundIndex = room.currentRoundIndex || 0;
-  user.roundScores = user.roundScores || [];
-  user.roundScores[roundIndex] = roundScore;
-  user.score = user.roundScores.reduce((sum, value) => sum + (value || 0), 0);
+  const { score: currentScore, correctChars, typedLength } = computeScore(room.text, safeValue);
+  user.score = currentScore;
   user.correctChars = correctChars;
   user.typedLength = typedLength;
   user.lastInputLength = typedLength;
@@ -478,7 +367,6 @@ function handleTypingUpdate(socket, payload = {}) {
   }
 
   emitTypingRoomState(roomId);
-  checkRoundCompletion(roomId);
 }
 
 function resolveTypingContext(socket, roomIdOverride) {
@@ -574,7 +462,6 @@ function handleLeaveTypingRoom(socket) {
     return;
   }
   emitTypingRoomState(roomId);
-  checkRoundCompletion(roomId);
 }
 
 io.on('connection', (socket) => {

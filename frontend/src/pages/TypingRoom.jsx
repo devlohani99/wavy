@@ -59,8 +59,6 @@ const TypingRoom = () => {
   const [hasTimedOut, setHasTimedOut] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(DEFAULT_TIME_LIMIT_SECONDS);
   const [toastMessage, setToastMessage] = useState('');
-  const [roundSummary, setRoundSummary] = useState(null);
-  const [gameSummary, setGameSummary] = useState(null);
   const [voicePeers, setVoicePeers] = useState({});
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState('idle');
@@ -260,7 +258,7 @@ const TypingRoom = () => {
     }
   }, [cleanupVoiceResources]);
 
-  const resetRoundState = useCallback((nextTimeLimit) => {
+  useEffect(() => {
     setTypedText('');
     typedTextRef.current = '';
     setElapsedSeconds(0);
@@ -268,18 +266,30 @@ const TypingRoom = () => {
     setIsCompleted(false);
     setHasTimedOut(false);
     hasTimedOutRef.current = false;
-    const resolvedLimit = (nextTimeLimit ?? roomInfo?.timeLimitSeconds) ?? DEFAULT_TIME_LIMIT_SECONDS;
+    setTimeRemaining(DEFAULT_TIME_LIMIT_SECONDS);
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+    typingStartedAtRef.current = null;
+  }, [roomId]);
+
+  const applyServerReset = useCallback((nextTimeLimitSeconds) => {
+    const resolvedLimit = nextTimeLimitSeconds || DEFAULT_TIME_LIMIT_SECONDS;
+    setTypedText('');
+    typedTextRef.current = '';
+    setElapsedSeconds(0);
+    setCurrentWpm(0);
+    setIsCompleted(false);
+    setHasTimedOut(false);
+    hasTimedOutRef.current = false;
     setTimeRemaining(resolvedLimit);
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
     typingStartedAtRef.current = null;
-  }, [roomInfo?.timeLimitSeconds]);
-
-  useEffect(() => {
-    resetRoundState();
-  }, [resetRoundState, roomId]);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -440,8 +450,7 @@ const TypingRoom = () => {
         return;
       }
       setRoomInfo((prev) => ({ ...prev, ...payload }));
-      setTimeRemaining(payload.timeLimitSeconds || DEFAULT_TIME_LIMIT_SECONDS);
-      resetRoundState(payload.timeLimitSeconds);
+      applyServerReset(payload.timeLimitSeconds);
     });
 
     socket.on('round-start', (payload) => {
@@ -451,7 +460,7 @@ const TypingRoom = () => {
       setRoomInfo((prev) => ({ ...prev, ...payload }));
       setRoundSummary(null);
       setGameSummary(null);
-      resetRoundState(payload.timeLimitSeconds);
+      applyServerReset(payload.timeLimitSeconds);
       showToast(`Round ${payload.roundNumber} started`);
     });
 
@@ -587,7 +596,7 @@ const TypingRoom = () => {
       socketRef.current = null;
       cleanupVoiceResources();
     };
-  }, [cleanupVoiceResources, flushPendingIce, handleTimeExpired, initiatePeerConnection, removeVoicePeer, resetRoundState, roomId, showToast, status]);
+  }, [applyServerReset, cleanupVoiceResources, flushPendingIce, handleTimeExpired, initiatePeerConnection, removeVoicePeer, roomId, showToast, status]);
 
   useEffect(() => {
     if (status === 'ready' && isNameConfirmed && socketRef.current?.connected) {
