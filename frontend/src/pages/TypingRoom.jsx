@@ -301,8 +301,6 @@ const TypingRoom = () => {
           return;
         }
         setRoomInfo(data);
-        setRoundSummary(null);
-        setGameSummary(null);
         setTimeRemaining(data?.timeLimitSeconds || DEFAULT_TIME_LIMIT_SECONDS);
         setHasTimedOut(false);
         hasTimedOutRef.current = false;
@@ -451,27 +449,6 @@ const TypingRoom = () => {
       }
       setRoomInfo((prev) => ({ ...prev, ...payload }));
       applyServerReset(payload.timeLimitSeconds);
-    });
-
-    socket.on('round-start', (payload) => {
-      if (!payload) {
-        return;
-      }
-      setRoomInfo((prev) => ({ ...prev, ...payload }));
-      setRoundSummary(null);
-      setGameSummary(null);
-      applyServerReset(payload.timeLimitSeconds);
-      showToast(`Round ${payload.roundNumber} started`);
-    });
-
-    socket.on('round-complete', (payload) => {
-      setRoundSummary(payload || null);
-    });
-
-    socket.on('game-complete', (payload) => {
-      setGameSummary(payload || null);
-      setRoundSummary(null);
-      showToast('Game complete!');
     });
 
     socket.on('typing-timeup', () => {
@@ -643,10 +620,6 @@ const TypingRoom = () => {
   );
 
   const handleInputChange = (event) => {
-    if (gameSummary) {
-      showToast('Game has finished');
-      return;
-    }
     if (!isNameConfirmed || status !== 'ready' || !roomInfo?.text) {
       showToast('Choose a name before typing');
       return;
@@ -696,8 +669,6 @@ const TypingRoom = () => {
     socketRef.current?.emit('leave-typing-room');
     socketRef.current?.emit('leave-voice');
     cleanupVoiceResources();
-    setRoundSummary(null);
-    setGameSummary(null);
     navigate('/');
   };
 
@@ -1034,7 +1005,7 @@ const TypingRoom = () => {
               onCopy={handleBlockedInteraction}
               onCut={handleBlockedInteraction}
               onKeyDown={handleKeyDownGuard}
-              disabled={!isNameConfirmed || isCompleted || status !== 'ready' || hasTimedOut || Boolean(gameSummary)}
+              disabled={!isNameConfirmed || isCompleted || status !== 'ready' || hasTimedOut}
               className="mt-3 h-40 w-full resize-none rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-base text-white placeholder:text-slate-600 focus:border-sky-400 disabled:cursor-not-allowed"
             />
             {elapsedSeconds > 0 && (
@@ -1148,53 +1119,6 @@ const TypingRoom = () => {
         </aside>
       </main>
 
-      {roundSummary && !gameSummary && (
-        <div className="pointer-events-none fixed bottom-4 left-1/2 z-20 w-full max-w-md -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-900/90 p-4 text-center text-sm text-white shadow-xl">
-          <p className="font-semibold">Round {roundSummary.roundNumber} complete</p>
-          {roundSummary.leaderboard?.[0] && (
-            <p className="text-xs text-slate-300">
-              Leading: {roundSummary.leaderboard[0].username} ({roundSummary.leaderboard[0].score} pts)
-            </p>
-          )}
-          <p className="mt-1 text-xs text-slate-400">Next round starting shortly…</p>
-        </div>
-      )}
-
-      {gameSummary && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-950/90 p-6 text-center text-white shadow-2xl">
-            <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Game complete</p>
-            <h2 className="mt-2 text-3xl font-semibold">Winner: {gameSummary.winner?.username || '—'}</h2>
-            <p className="mt-1 text-slate-300">Total Score: {gameSummary.winner?.score ?? 0} pts</p>
-            <div className="mt-4 space-y-2 text-left text-sm text-slate-200 max-h-60 overflow-y-auto pr-2">
-              {(gameSummary.leaderboard || []).map((entry, index) => (
-                <div key={entry.socketId || `${entry.username}-${index}`} className="flex justify-between">
-                  <span>
-                    {index + 1}. {entry.username}
-                  </span>
-                  <span>{entry.score} pts</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <button
-                type="button"
-                onClick={() => setGameSummary(null)}
-                className="rounded-full border border-white/20 px-5 py-2 text-sm hover:bg-white/10"
-              >
-                Stay
-              </button>
-              <button
-                type="button"
-                onClick={handleLeaveRoom}
-                className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-slate-900"
-              >
-                Exit room
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
