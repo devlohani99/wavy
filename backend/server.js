@@ -1,9 +1,11 @@
-require('dotenv').config();
+require('dotenv').config({ override: true });
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { Server } = require('socket.io');
+const Groq = require('groq-sdk');
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy_key' });
 
 const Room = require('./models/Room');
 const roomRoutes = require('./routes/roomRoutes');
@@ -444,6 +446,118 @@ function handleLeaveTypingRoom(socket) {
   emitTypingRoomState(roomId);
 }
 
+async function handleAddAiOpponent(socket, payload = {}) {
+  console.log('handleAddAiOpponent called', payload);
+  const roomId = normalizeRoomId(payload.roomId);
+  if (!roomId) {
+    console.log('No roomId');
+    return;
+  }
+  const room = getTypingRoom(roomId);
+  if (!room) {
+    console.log('Room not found', roomId);
+    return;
+  }
+
+  try {
+    console.log('Calling Groq...');
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: 'user',
+          content: 'Generate a JSON object with two fields: "username" (a funny one-word name for an AI bot, max 10 chars, strictly no emojis) and "wpm" (a number between 30 and 120 representing Words Per Minute). Only output the JSON object.',
+        },
+      ],
+      model: 'llama-3.1-8b-instant',
+      response_format: { type: 'json_object' },
+    });
+
+    const aiData = JSON.parse(chatCompletion.choices[0].message.content);
+    const username = (aiData.username || 'Bot').slice(0, 10);
+    const wpm = aiData.wpm || 60;
+    
+    const aiId = `ai-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const now = Date.now();
+    
+    room.users.set(aiId, {
+      socketId: aiId,
+      username: username + ' [AI]',
+      score: 0,
+      typedLength: 0,
+      correctChars: 0,
+      lastInputLength: 0,
+      lastInputValue: '',
+      lastUpdateAt: now,
+      isCompleted: false,
+      completionTime: null,
+      flags: [],
+      isFlagged: false,
+      startedAt: now,
+      expiresAt: now + TYPING_TIME_LIMIT_MS,
+      isTimeUp: false,
+      isAi: true,
+      wpm: wpm
+    });
+
+    emitTypingRoomState(roomId);
+    
+    const charsPerSecond = (wpm * 5) / 60;
+    const intervalMs = 1000;
+    
+    const aiInterval = setInterval(() => {
+      const currentRoom = getTypingRoom(roomId);
+      if (!currentRoom) {
+        clearInterval(aiInterval);
+        return;
+      }
+      const aiUser = currentRoom.users.get(aiId);
+      if (!aiUser || aiUser.isCompleted || aiUser.isTimeUp) {
+        clearInterval(aiInterval);
+        return;
+      }
+      
+      const timeNow = Date.now();
+      if (aiUser.expiresAt <= timeNow) {
+        aiUser.isTimeUp = true;
+        emitTypingRoomState(roomId);
+        clearInterval(aiInterval);
+        return;
+      }
+      
+      const elapsedSeconds = (timeNow - aiUser.startedAt) / 1000;
+      const targetLength = Math.floor(elapsedSeconds * charsPerSecond);
+      const textToType = currentRoom.text || '';
+      
+      const nextLength = Math.min(targetLength, textToType.length);
+      const typedValue = textToType.slice(0, nextLength);
+      
+      const { score, correctChars, typedLength } = computeScore(textToType, typedValue);
+      aiUser.score = score;
+      aiUser.correctChars = correctChars;
+      aiUser.typedLength = typedLength;
+      aiUser.lastInputLength = typedLength;
+      aiUser.lastInputValue = typedValue;
+      aiUser.lastUpdateAt = timeNow;
+      
+      if (typedLength >= textToType.length && textToType.length > 0) {
+        aiUser.isCompleted = true;
+        aiUser.completionTime = timeNow;
+        io.to(`typing:${roomId}`).emit('user-finished', {
+          roomId,
+          username: aiUser.username,
+          completionTime: timeNow,
+        });
+        clearInterval(aiInterval);
+      }
+      
+      emitTypingRoomState(roomId);
+    }, intervalMs);
+
+  } catch (error) {
+    console.error('Failed to add AI opponent', error);
+  }
+}
+
 io.on('connection', (socket) => {
   socket.on('join-room', async (payload = {}) => handleJoinRoom(socket, payload.roomId));
   socket.on('leave-room', async () => handleLeaveRoom(socket));
@@ -483,6 +597,7 @@ io.on('connection', (socket) => {
   socket.on('join-typing-room', (payload = {}) => handleJoinTypingRoom(socket, payload));
   socket.on('typing-update', (payload = {}) => handleTypingUpdate(socket, payload));
   socket.on('leave-typing-room', () => handleLeaveTypingRoom(socket));
+  socket.on('add-ai-opponent', (payload = {}) => handleAddAiOpponent(socket, payload));
   socket.on('join-voice', () => handleJoinTypingVoice(socket));
   socket.on('leave-voice', () => handleLeaveTypingVoice(socket));
   socket.on('typing-voice-offer', (payload = {}) => forwardTypingVoiceSignal(socket, 'typing-voice-offer', payload));

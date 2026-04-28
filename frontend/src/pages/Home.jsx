@@ -16,7 +16,7 @@ const modeConfigs = {
     joinStatus: 'Connecting you to the canvas...',
     endpoint: '/api/rooms/create',
     routePrefix: '/room/',
-    accent: 'from-sky-400 via-blue-500 to-cyan-400',
+    accent: 'bg-blue-600',
   },
   typing: {
     id: 'typing',
@@ -29,7 +29,7 @@ const modeConfigs = {
     joinStatus: 'Loading the typing sprint...',
     endpoint: '/api/typing/create-room',
     routePrefix: '/typing/',
-    accent: 'from-rose-400 via-fuchsia-500 to-indigo-500',
+    accent: 'bg-indigo-600',
   },
 };
 
@@ -98,26 +98,26 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#050914] px-4 py-10 text-slate-100">
+    <div className="min-h-screen w-full bg-[#F4EBD9] px-4 py-10 text-[#4A3F35]">
       <div className="mx-auto flex max-w-4xl flex-col gap-10">
         <header className="text-center space-y-3">
-          <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Realtime workspace</p>
-          <h1 className="text-5xl font-semibold tracking-[0.2em] text-white">WAVY</h1>
-          <p className="text-sm text-slate-400">Pick a mode, share the link, and you’re collaborating.</p>
+          <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Realtime workspace</p>
+          <h1 className="text-5xl font-semibold tracking-[0.2em] text-[#3E342B]">WAVY</h1>
+          <p className="text-sm text-stone-500">Pick a mode, share the link, and you’re collaborating.</p>
         </header>
 
-        <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+        <section className="rounded-[32px] border border-stone-200 bg-[#FDF6E3] shadow-sm p-6 ">
           <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Modes</p>
-              <div className="inline-flex rounded-full bg-slate-900/70 p-1">
+              <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Modes</p>
+              <div className="inline-flex rounded-full bg-[#FDF6E3]/70 p-1">
                 {Object.values(modeConfigs).map((mode) => (
                   <button
                     key={mode.id}
                     type="button"
                     onClick={() => handleModeChange(mode.id)}
                     className={`rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition ${
-                      activeMode === mode.id ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'
+                      activeMode === mode.id ? 'bg-[#4A3F35] text-white' : 'text-stone-500 hover:text-[#3E342B]'
                     }`}
                   >
                     {mode.label}
@@ -127,26 +127,26 @@ const Home = () => {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{currentMode.title}</p>
-                <p className="mt-3 text-3xl font-semibold text-white">{currentMode.description}</p>
-                <p className="mt-4 text-sm text-slate-400">
+              <div className="rounded-3xl border border-stone-200 bg-[#FDF6E3]/60 p-6">
+                <p className="text-xs uppercase tracking-[0.3em] text-stone-500">{currentMode.title}</p>
+                <p className="mt-3 text-3xl font-semibold text-[#3E342B]">{currentMode.description}</p>
+                <p className="mt-4 text-sm text-stone-500">
                   Lightweight spaces built for quick collaboration. Switch modes at any time without leaving this page.
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
-                <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Access</p>
+              <div className="rounded-3xl border border-stone-200 bg-[#F4EBD9]/70 p-6">
+                <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Access</p>
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleCreateRoom}
-                  className={`mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r ${currentMode.accent} px-6 py-3 text-lg font-semibold text-white shadow-lg shadow-slate-900/50 transition hover:shadow-slate-900/80 disabled:cursor-not-allowed disabled:opacity-70`}
+                  className={`mt-4 inline-flex w-full items-center justify-center rounded-2xl  ${currentMode.accent} px-6 py-3 text-lg font-semibold text-[#3E342B] shadow-lg shadow-gray-200 transition hover:shadow-gray-300 disabled:cursor-not-allowed disabled:opacity-70`}
                 >
                   {isSubmitting ? 'Working…' : currentMode.createLabel}
                 </button>
                 <div className="mt-6 space-y-3">
-                  <label htmlFor="room-id" className="text-xs uppercase tracking-[0.4em] text-slate-500">
+                  <label htmlFor="room-id" className="text-xs uppercase tracking-[0.4em] text-stone-500">
                     Join with code
                   </label>
                   <input
@@ -159,17 +159,17 @@ const Home = () => {
                     value={roomIdInput}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-lg uppercase tracking-[0.3em] text-white placeholder:text-slate-500 focus:border-sky-400"
+                    className="w-full rounded-2xl border border-stone-200 bg-[#FDF6E3] px-4 py-3 text-lg uppercase tracking-[0.3em] text-[#3E342B] placeholder:text-stone-500 focus:border-blue-500"
                   />
                   <button
                     type="button"
                     onClick={handleJoinRoom}
-                    className="w-full rounded-2xl border border-white/20 px-4 py-3 text-lg font-semibold text-white transition hover:bg-white/10"
+                    className="w-full rounded-2xl border border-stone-300 px-4 py-3 text-lg font-semibold text-[#3E342B] transition hover:bg-[#EAE0C8]"
                   >
                     {currentMode.joinLabel}
                   </button>
                   {(error || statusMessage) && (
-                    <p className={`text-xs ${error ? 'text-rose-400' : 'text-slate-400'}`}>
+                    <p className={`text-xs ${error ? 'text-red-500' : 'text-stone-500'}`}>
                       {error || statusMessage}
                     </p>
                   )}
@@ -179,14 +179,14 @@ const Home = () => {
           </div>
         </section>
 
-        <footer className="flex flex-col items-center gap-3 text-center text-xs uppercase tracking-[0.4em] text-slate-500">
+        <footer className="flex flex-col items-center gap-3 text-center text-xs uppercase tracking-[0.4em] text-stone-500">
           <p>© 2026 Wavy</p>
           <div className="flex gap-4 text-[10px] tracking-[0.3em]">
             <a
               href="https://www.linkedin.com/in/devlohani/"
               target="_blank"
               rel="noreferrer"
-              className="text-slate-300 hover:text-white"
+              className="text-stone-600 hover:text-[#3E342B]"
             >
               LinkedIn
             </a>
@@ -194,7 +194,7 @@ const Home = () => {
               href="https://github.com/devlohani99"
               target="_blank"
               rel="noreferrer"
-              className="text-slate-300 hover:text-white"
+              className="text-stone-600 hover:text-[#3E342B]"
             >
               GitHub
             </a>

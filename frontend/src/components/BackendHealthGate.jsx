@@ -16,15 +16,15 @@ const BackendHealthGate = ({ children }) => {
   const showRetry = status === 'offline';
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-[#050914] px-4 text-center text-white">
-      <div className="h-16 w-16 animate-spin rounded-full border-4 border-white/10 border-t-sky-400" aria-label="Backend loading spinner" />
-      <p className="text-sm text-slate-300">{message}</p>
-      {error && <p className="text-xs text-rose-300">{error}</p>}
+    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-[#F4EBD9] px-4 text-center text-[#3E342B]">
+      <div className="h-16 w-16 animate-spin rounded-full border-4 border-stone-200 border-t-sky-400" aria-label="Backend loading spinner" />
+      <p className="text-sm text-stone-600">{message}</p>
+      {error && <p className="text-xs text-red-600">{error}</p>}
       {showRetry && (
         <button
           type="button"
           onClick={retry}
-          className="rounded-full border border-white/30 px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-100 transition hover:bg-white/10"
+          className="rounded-full border border-white/30 px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#4A3F35] transition hover:bg-[#EAE0C8]"
         >
           Retry now
         </button>

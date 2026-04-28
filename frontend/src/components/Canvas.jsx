@@ -349,7 +349,7 @@ const Canvas = forwardRef(({ socket, roomId, selectedTool, color, brushSize }, r
   return (
     <canvas
       ref={canvasRef}
-      className="w-full h-full rounded-2xl bg-slate-950/40 border border-white/10 touch-none cursor-crosshair"
+      className="w-full h-full rounded-2xl bg-[#F4EBD9]/40 border border-stone-200 touch-none cursor-crosshair"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

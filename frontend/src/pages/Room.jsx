@@ -422,24 +422,24 @@ const Room = () => {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-950 text-slate-100">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-white/10 border-t-sky-500" />
-        <p className="text-slate-400">Preparing your room...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#F4EBD9] text-[#4A3F35]">
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-stone-200 border-t-sky-500" />
+        <p className="text-stone-500">Preparing your room...</p>
       </div>
     );
   }
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-slate-950 text-center text-slate-100 px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-[#F4EBD9] text-center text-[#4A3F35] px-6">
         <div>
           <p className="text-3xl font-semibold">Unable to open this room.</p>
-          <p className="mt-3 text-slate-400">{error || 'Please verify the link and try again.'}</p>
+          <p className="mt-3 text-stone-500">{error || 'Please verify the link and try again.'}</p>
         </div>
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="rounded-full border border-white/20 px-6 py-3 text-base font-medium text-white hover:bg-white/10"
+          className="rounded-full border border-stone-300 px-6 py-3 text-base font-medium text-[#3E342B] hover:bg-[#EAE0C8]"
         >
           Back to home
         </button>
@@ -448,40 +448,40 @@ const Room = () => {
   }
 
   return (
-    <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
-      <header className="border-b border-white/10 px-4 py-4 md:px-8 flex flex-wrap items-center gap-4 justify-between shrink-0">
+    <div className="h-screen bg-[#F4EBD9] text-[#4A3F35] flex flex-col overflow-hidden">
+      <header className="border-b border-stone-200 px-4 py-4 md:px-8 flex flex-wrap items-center gap-4 justify-between shrink-0">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Room</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Room</p>
           <div className="mt-1 flex items-center gap-3">
             <span className="text-2xl font-semibold tracking-widest">{roomId}</span>
             <button
               type="button"
               onClick={handleCopyLink}
-              className="rounded-full border border-white/20 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-200 hover:bg-white/10"
+              className="rounded-full border border-stone-300 px-3 py-1 text-xs uppercase tracking-[0.3em] text-stone-700 hover:bg-[#EAE0C8]"
             >
               Copy link
             </button>
           </div>
-          {copyFeedback && <p className="mt-1 text-xs text-slate-400">{copyFeedback}</p>}
+          {copyFeedback && <p className="mt-1 text-xs text-stone-500">{copyFeedback}</p>}
         </div>
         <div className="flex flex-col items-end gap-2 text-right">
-          <div className="flex items-center gap-2 text-sm text-slate-300">
+          <div className="flex items-center gap-2 text-sm text-stone-600">
             <span className={`h-2.5 w-2.5 rounded-full ${socketIndicatorClasses} shadow-md`} />
             <span className="uppercase tracking-[0.3em] text-xs">{socketState}</span>
           </div>
           <p className="text-lg font-medium">Users online: {userCount}</p>
           {roomInfo?.createdAt && (
-            <p className="text-xs text-slate-500">Room opened {new Date(roomInfo.createdAt).toLocaleString()}</p>
+            <p className="text-xs text-stone-500">Room opened {new Date(roomInfo.createdAt).toLocaleString()}</p>
           )}
         </div>
       </header>
 
       <main className="flex flex-1 flex-col overflow-hidden lg:flex-row">
-        <aside className="w-full lg:w-72 border-b border-white/10 bg-white/5 p-5 backdrop-blur-xl lg:border-b-0 lg:border-r shrink-0 overflow-y-auto">
+        <aside className="w-full lg:w-72 border-b border-stone-200 bg-[#FDF6E3] shadow-sm p-5  lg:border-b-0 lg:border-r shrink-0 overflow-y-auto">
           <div className="space-y-6">
             {TOOL_GROUPS.map((group) => (
               <div key={group.label}>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{group.label}</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-stone-500">{group.label}</p>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   {group.items.map((tool) => (
                     <button
@@ -490,8 +490,8 @@ const Room = () => {
                       onClick={() => setSelectedTool(tool.id)}
                       className={`rounded-2xl border px-3 py-2 text-sm font-medium transition ${
                         selectedTool === tool.id
-                          ? 'border-sky-400 bg-sky-500/20 text-white'
-                          : 'border-white/10 text-slate-300 hover:border-white/30'
+                          ? 'border-blue-500 bg-sky-500/20 text-[#3E342B]'
+                          : 'border-stone-200 text-stone-600 hover:border-white/30'
                       }`}
                     >
                       {tool.label}
@@ -502,7 +502,7 @@ const Room = () => {
             ))}
 
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Colors</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Colors</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {COLOR_PRESETS.map((preset) => (
                   <button
@@ -516,7 +516,7 @@ const Room = () => {
                     aria-label={`Select color ${preset}`}
                   />
                 ))}
-                <label className="relative inline-flex h-9 w-9 cursor-pointer overflow-hidden rounded-full border border-white/10">
+                <label className="relative inline-flex h-9 w-9 cursor-pointer overflow-hidden rounded-full border border-stone-200">
                   <span className="sr-only">Pick custom color</span>
                   <input
                     type="color"
@@ -524,13 +524,13 @@ const Room = () => {
                     onChange={(event) => setColor(event.target.value)}
                     className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   />
-                  <span className="absolute inset-0 rounded-full border border-white/20" style={{ backgroundColor: color }} />
+                  <span className="absolute inset-0 rounded-full border border-stone-300" style={{ backgroundColor: color }} />
                 </label>
               </div>
             </div>
 
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Brush size</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Brush size</p>
               <div className="mt-3 flex items-center gap-3">
                 <input
                   type="range"
@@ -540,38 +540,38 @@ const Room = () => {
                   onChange={(event) => setBrushSize(Number(event.target.value))}
                   className="flex-1 accent-sky-400"
                 />
-                <span className="text-sm text-slate-300 w-10 text-center">{brushSize}px</span>
+                <span className="text-sm text-stone-600 w-10 text-center">{brushSize}px</span>
               </div>
             </div>
 
             <button
               type="button"
               onClick={handleClearCanvas}
-              className="w-full rounded-2xl border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+              className="w-full rounded-2xl border border-stone-300 px-4 py-2 text-sm font-semibold text-[#3E342B] transition hover:bg-[#EAE0C8]"
             >
               Clear Canvas
             </button>
 
-            <div className="rounded-2xl border border-white/10 p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Voice</p>
+            <div className="rounded-2xl border border-stone-200 p-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Voice</p>
               <div className="mt-3 flex flex-col gap-3">
                 <button
                   type="button"
                   onClick={handleMuteToggle}
                   className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                    isMuted ? 'bg-rose-500/20 text-rose-200 hover:bg-rose-500/30' : 'bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30'
+                    isMuted ? 'bg-rose-500/20 text-red-700 hover:bg-rose-500/30' : 'bg-emerald-500/20 text-green-700 hover:bg-emerald-500/30'
                   }`}
                 >
                   {isMuted ? 'Unmute' : 'Mute'}
                 </button>
-                {voiceError && <p className="text-xs text-rose-300">{voiceError}</p>}
+                {voiceError && <p className="text-xs text-red-600">{voiceError}</p>}
               </div>
             </div>
 
             <button
               type="button"
               onClick={() => handleLeaveRoom(true)}
-              className="w-full rounded-2xl border border-rose-400/50 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/10"
+              className="w-full rounded-2xl border border-rose-400/50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
             >
               Leave Room
             </button>
@@ -579,11 +579,11 @@ const Room = () => {
         </aside>
 
         <section className="flex-1 p-4 md:p-8 overflow-hidden">
-          <div className="flex h-full flex-col rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_10px_80px_rgba(15,23,42,0.55)] overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 text-sm text-slate-400">
+          <div className="flex h-full flex-col rounded-3xl border border-stone-200 bg-[#FDF6E3] shadow-sm  shadow-[0_10px_80px_rgba(15,23,42,0.55)] overflow-hidden">
+            <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4 text-sm text-stone-500">
               <p>Live Canvas</p>
               <p>
-                Tool: <span className="font-semibold text-white">{selectedTool}</span>
+                Tool: <span className="font-semibold text-[#3E342B]">{selectedTool}</span>
               </p>
             </div>
             <div className="flex-1 p-4 overflow-hidden">

@@ -677,6 +677,10 @@ const TypingRoom = () => {
     navigate('/');
   };
 
+  const handleAddAi = () => {
+    socketRef.current?.emit('add-ai-opponent', { roomId });
+  };
+
   const handleSaveName = () => {
     if (!validateName(nameInput)) {
       setNameError(`Name must be ${MIN_USERNAME_LENGTH}-${MAX_USERNAME_LENGTH} characters (letters, numbers, space, - or _)`);
@@ -788,10 +792,10 @@ const TypingRoom = () => {
   }, [roomInfo?.text, typedText]);
 
   const promptClassMap = {
-    completed: 'text-slate-500',
-    current: 'text-sky-300',
-    upcoming: 'text-slate-200',
-    error: 'text-rose-300 underline decoration-rose-400',
+    completed: 'text-stone-500',
+    current: 'text-blue-600',
+    upcoming: 'text-stone-700',
+    error: 'text-red-600 underline decoration-rose-400',
     space: '',
   };
 
@@ -873,7 +877,7 @@ const TypingRoom = () => {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-[#F4EBD9] text-[#4A3F35]">
         <p>Loading room…</p>
       </div>
     );
@@ -881,13 +885,13 @@ const TypingRoom = () => {
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-950 text-slate-100">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#F4EBD9] text-[#4A3F35]">
         <p className="text-2xl font-semibold">Unable to join typing room.</p>
-        <p className="text-slate-400">{error}</p>
+        <p className="text-stone-500">{error}</p>
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="rounded-full border border-white/20 px-5 py-2 text-sm text-white hover:bg-white/10"
+          className="rounded-full border border-stone-300 px-5 py-2 text-sm text-[#3E342B] hover:bg-[#EAE0C8]"
         >
           Back to home
         </button>
@@ -896,18 +900,18 @@ const TypingRoom = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="relative min-h-screen bg-[#F4EBD9] text-[#4A3F35] flex flex-col">
       {toastMessage && (
-        <div className="pointer-events-none absolute left-1/2 top-6 z-20 -translate-x-1/2 rounded-full border border-white/20 bg-slate-900/90 px-6 py-2 text-sm text-white shadow-lg">
+        <div className="pointer-events-none absolute left-1/2 top-6 z-20 -translate-x-1/2 rounded-full border border-stone-300 bg-[#FDF6E3]/90 px-6 py-2 text-sm text-[#3E342B] shadow-lg">
           {toastMessage}
         </div>
       )}
 
       {isNameModalOpen && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/90 px-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 text-left">
-            <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Choose a name</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">This is how others see you</h2>
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#F4EBD9]/90 px-4">
+          <div className="w-full max-w-md rounded-3xl border border-stone-200 bg-[#FDF6E3] p-6 text-left">
+            <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Choose a name</p>
+            <h2 className="mt-2 text-2xl font-semibold text-[#3E342B]">This is how others see you</h2>
             <input
               value={nameInput}
               onChange={(event) => {
@@ -915,20 +919,20 @@ const TypingRoom = () => {
                 setNameError('');
               }}
               maxLength={MAX_USERNAME_LENGTH}
-              className="mt-5 w-full rounded-2xl border border-white/15 bg-slate-950 px-4 py-3 text-lg text-white placeholder:text-slate-500 focus:border-sky-400"
+              className="mt-5 w-full rounded-2xl border border-stone-300 bg-[#F4EBD9] px-4 py-3 text-lg text-[#3E342B] placeholder:text-stone-500 focus:border-blue-500"
               placeholder="e.g. NovaScribe"
             />
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+            <div className="mt-2 flex items-center justify-between text-xs text-stone-500">
               <span>
                 {nameInput.length}/{MAX_USERNAME_LENGTH} chars
               </span>
               <span>Letters, numbers, space, -, _</span>
             </div>
-            {nameError && <p className="mt-2 text-sm text-rose-400">{nameError}</p>}
+            {nameError && <p className="mt-2 text-sm text-red-500">{nameError}</p>}
             <button
               type="button"
               onClick={handleSaveName}
-              className="mt-5 w-full rounded-full bg-white px-5 py-3 text-center text-slate-900 font-semibold"
+              className="mt-5 w-full rounded-full bg-[#FDF6E3] px-5 py-3 text-center text-slate-900 font-semibold"
             >
               Save name
             </button>
@@ -936,15 +940,15 @@ const TypingRoom = () => {
         </div>
       )}
 
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-5 py-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Typing room</p>
+          <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Typing room</p>
           <div className="mt-1 flex flex-wrap items-center gap-3">
             <span className="text-2xl font-semibold tracking-[0.3em]">{roomId}</span>
             <button
               type="button"
               onClick={() => navigator.clipboard.writeText(window.location.href)}
-              className="rounded-full border border-white/20 px-3 py-1 text-xs uppercase tracking-[0.4em] text-slate-200 hover:bg-white/10"
+              className="rounded-full border border-stone-300 px-3 py-1 text-xs uppercase tracking-[0.4em] text-stone-700 hover:bg-[#EAE0C8]"
             >
               Copy link
             </button>
@@ -955,36 +959,45 @@ const TypingRoom = () => {
                 setNameInput(confirmedName);
                 setNameError('');
               }}
-              className="rounded-full border border-white/20 px-3 py-1 text-xs uppercase tracking-[0.4em] text-slate-200 hover:bg-white/10"
+              className="rounded-full border border-stone-300 px-3 py-1 text-xs uppercase tracking-[0.4em] text-stone-700 hover:bg-[#EAE0C8]"
             >
               Edit name
             </button>
           </div>
         </div>
         <div className="text-right space-y-1">
-          <p className="text-sm text-slate-300">Users online: {userCount}</p>
-          <p className={`text-sm ${timeRemaining <= 10 ? 'text-rose-300' : 'text-slate-300'}`}>
+          <p className="text-sm text-stone-600">Users online: {userCount}</p>
+          <p className={`text-sm ${timeRemaining <= 10 ? 'text-red-600' : 'text-stone-600'}`}>
             Time left: {timeRemaining}s
           </p>
-          <button
-            type="button"
-            onClick={handleLeaveRoom}
-            className="mt-2 rounded-full border border-rose-400/60 px-4 py-1 text-sm text-rose-200 hover:bg-rose-500/10"
-          >
-            Leave
-          </button>
+          <div className="flex gap-2 justify-end mt-2">
+            <button
+              type="button"
+              onClick={handleAddAi}
+              className="rounded-full border border-blue-500/60 px-4 py-1 text-sm text-blue-700 hover:bg-blue-50"
+            >
+              Add AI Opponent
+            </button>
+            <button
+              type="button"
+              onClick={handleLeaveRoom}
+              className="rounded-full border border-red-300 px-4 py-1 text-sm text-red-700 hover:bg-red-50"
+            >
+              Leave
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="flex flex-1 flex-col gap-6 p-5 lg:flex-row">
-        <section className="flex-1 rounded-3xl border border-white/10 bg-white/5/10 p-5 backdrop-blur-xl">
-          <div className="flex items-center justify-between text-xs uppercase tracking-[0.4em] text-slate-400">
+        <section className="flex-1 rounded-3xl border border-stone-200 bg-[#FDF6E3] shadow-sm p-5 ">
+          <div className="flex items-center justify-between text-xs uppercase tracking-[0.4em] text-stone-500">
             <span>
               Prompt · Round {roomInfo?.roundNumber || 1}/{roomInfo?.totalRounds || 1}
             </span>
             {roomInfo?.text && <span>{progressPercent}% complete</span>}
           </div>
-          <p className="mt-3 text-lg leading-relaxed text-slate-100">
+          <p className="mt-3 text-lg leading-relaxed text-[#4A3F35]">
             {promptSegments.length
               ? promptSegments.map((segment) => (
                   <span key={segment.key} className={promptClassMap[segment.status]}>
@@ -995,10 +1008,10 @@ const TypingRoom = () => {
           </p>
 
           <div
-            className="mt-6 rounded-2xl border border-white/10 bg-slate-900/60 p-4"
+            className="mt-6 rounded-2xl border border-stone-200 bg-[#FDF6E3]/60 p-4"
             onContextMenu={handleBlockedInteraction}
           >
-            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-stone-500">
               <span>Typing as {confirmedName || 'Guest'}</span>
               <span>{currentWpm} WPM</span>
             </div>
@@ -1011,40 +1024,40 @@ const TypingRoom = () => {
               onCut={handleBlockedInteraction}
               onKeyDown={handleKeyDownGuard}
               disabled={!isNameConfirmed || isCompleted || status !== 'ready' || hasTimedOut}
-              className="mt-3 h-40 w-full resize-none rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-base text-white placeholder:text-slate-600 focus:border-sky-400 disabled:cursor-not-allowed"
+              className="mt-3 h-40 w-full resize-none rounded-2xl border border-stone-200 bg-[#F4EBD9]/80 px-4 py-3 text-base text-[#3E342B] placeholder:text-stone-400 focus:border-blue-500 disabled:cursor-not-allowed"
             />
             {elapsedSeconds > 0 && (
-              <p className="mt-2 text-xs text-slate-400">Elapsed: {elapsedSeconds}s</p>
+              <p className="mt-2 text-xs text-stone-500">Elapsed: {elapsedSeconds}s</p>
             )}
             {isCompleted && (
-              <div className="mt-2 rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">
+              <div className="mt-2 rounded-xl border border-green-300 bg-green-50 px-4 py-2 text-sm text-green-700">
                 You finished!
               </div>
             )}
             {hasTimedOut && (
-              <div className="mt-2 rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-2 text-sm text-rose-100">
+              <div className="mt-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-rose-100">
                 Time is up. Results are locked.
               </div>
             )}
           </div>
         </section>
 
-        <aside className="w-full space-y-5 rounded-3xl border border-white/10 bg-white/5/10 p-5 backdrop-blur-xl lg:w-96">
+        <aside className="w-full space-y-5 rounded-3xl border border-stone-200 bg-[#FDF6E3] shadow-sm p-5  lg:w-96">
           <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Score leaderboard</p>
+            <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Score leaderboard</p>
             <div className="mt-4 space-y-3">
               {formattedLeaderboard.length === 0 && (
-                <p className="text-sm text-slate-500">Waiting for typists…</p>
+                <p className="text-sm text-stone-500">Waiting for typists…</p>
               )}
               {formattedLeaderboard.map((entry) => (
                 <div
                   key={`${entry.username}-${entry.position}`}
                   className={`rounded-2xl border px-4 py-3 text-sm ${
                     entry.isSelf
-                      ? 'border-sky-400 bg-sky-500/10 text-white'
+                      ? 'border-blue-500 bg-blue-50 text-[#3E342B]'
                       : entry.isTimeUp
-                        ? 'border-amber-400/40 bg-amber-500/10 text-amber-100'
-                        : 'border-white/10 text-slate-200'
+                        ? 'border-orange-300 bg-orange-50 text-orange-700'
+                        : 'border-stone-200 text-stone-700'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -1061,18 +1074,18 @@ const TypingRoom = () => {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+          <div className="rounded-2xl border border-stone-200 bg-[#F4EBD9]/60 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Voice chat</p>
-                <p className="text-sm text-slate-300">{voiceStatus === 'idle' ? 'Off' : voiceStatus}</p>
+                <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Voice chat</p>
+                <p className="text-sm text-stone-600">{voiceStatus === 'idle' ? 'Off' : voiceStatus}</p>
               </div>
               <button
                 type="button"
                 onClick={handleEnableVoice}
                 disabled={!socketRef.current || !clientSocketId}
                 className={`rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] ${
-                  isVoiceEnabled ? 'border border-rose-400/60 text-rose-200' : 'border border-sky-400/60 text-sky-200'
+                  isVoiceEnabled ? 'border border-red-300 text-red-700' : 'border border-blue-500/60 text-blue-700'
                 } disabled:cursor-not-allowed disabled:opacity-50`}
               >
                 {isVoiceEnabled ? 'Leave' : 'Join'}
@@ -1083,7 +1096,7 @@ const TypingRoom = () => {
                 <button
                   type="button"
                   onClick={handleToggleMute}
-                  className="w-full rounded-full border border-white/10 px-4 py-2 text-sm text-white hover:border-white/40"
+                  className="w-full rounded-full border border-stone-200 px-4 py-2 text-sm text-[#3E342B] hover:border-white/40"
                 >
                   {isMuted ? 'Unmute mic' : 'Mute mic'}
                 </button>
@@ -1092,12 +1105,12 @@ const TypingRoom = () => {
                     <div
                       key={peer.socketId}
                       className={`flex items-center justify-between rounded-2xl border px-4 py-2 text-sm ${
-                        peer.isSpeaking ? 'border-emerald-400 bg-emerald-500/10' : 'border-white/10'
+                        peer.isSpeaking ? 'border-green-500 bg-green-50' : 'border-stone-200'
                       }`}
                     >
                       <div>
-                        <p className="font-semibold text-white">{peer.isLocal ? `${peer.username} (You)` : peer.username}</p>
-                        <p className="text-xs text-slate-400">{peer.isSpeaking ? 'Speaking' : 'Idle'}</p>
+                        <p className="font-semibold text-[#3E342B]">{peer.isLocal ? `${peer.username} (You)` : peer.username}</p>
+                        <p className="text-xs text-stone-500">{peer.isSpeaking ? 'Speaking' : 'Idle'}</p>
                       </div>
                       <audio
                         ref={(element) => {
